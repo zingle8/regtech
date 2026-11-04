@@ -1,0 +1,52 @@
+server:
+  port: 28100
+  servlet:
+    context-path: /api/regtech/user
+
+spring:
+  application:
+    name: jv-regtech-user
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${MYSQL_URL:jdbc:mysql://127.0.0.1:3306/regtech_platform?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:Root@123456}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+regtech:
+  jwt:
+    secret: ${REGTECH_JWT_SECRET:ai-ncs-regtech-jwt-secret-key-change-me-please}
+    expire-hours: 8
+  auth:
+    exclude-paths:
+      - /auth/login
+      - /health
+      - /actuator/**
+      - /error
+  # 接入 API 网关平台：自动注册 + 心跳 + 调用日志采集
+  gateway:
+    enabled: ${GATEWAY_ENABLED:true}
+    base-url: ${GATEWAY_BASE_URL:http://127.0.0.1:28090/api}
+    app-id: app-regtech
+    app-name: NCS RegTech 监管科技
+    service-name: jv-regtech-user
+    port: 28100
+    ip: ${GATEWAY_IP:127.0.0.1}
+    trace:
+      enabled: true
+      exclude-paths:
+        - /actuator
+        - /error
+        - /health
+        - /renren
+
+mybatis:
+  mapper-locations: classpath*:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    com.zimo.regtech: info

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zimo.regtech.graph.mapper.GraphMapper">
+
+    <select id="selectNodes" resultType="com.zimo.regtech.graph.entity.KgNode">
+        SELECT id, code, name, label, category, jurisdiction, description, properties::text AS properties, create_time
+        FROM kg_node
+        <where>
+            <if test="keyword != null and keyword != ''">
+                (name ILIKE CONCAT('%', #{keyword}, '%') OR description ILIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="category != null and category != ''">AND category = #{category}</if>
+        </where>
+        ORDER BY id ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectNode" resultType="com.zimo.regtech.graph.entity.KgNode">
+        SELECT id, code, name, label, category, jurisdiction, description, properties::text AS properties, create_time
+        FROM kg_node WHERE id = #{id}
+    </select>
+
+    <select id="selectNodeByCode" resultType="com.zimo.regtech.graph.entity.KgNode">
+        SELECT id, code, name, label, category, jurisdiction, description, properties::text AS properties, create_time
+        FROM kg_node WHERE code = #{code}
+    </select>
+
+    <insert id="insertNode" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO kg_node (code, name, label, category, jurisdiction, description, properties)
+        VALUES (#{code}, #{name}, #{label}, #{category}, #{jurisdiction}, #{description},
+                CAST(#{properties} AS jsonb))
+        ON CONFLICT (code) DO NOTHING
+    </insert>
+
+    <update id="updateNode">
+        UPDATE kg_node
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="label != null">label = #{label},</if>
+            <if test="category != null">category = #{category},</if>
+            <if test="jurisdiction != null">jurisdiction = #{jurisdiction},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="properties != null">properties = CAST(#{properties} AS jsonb),</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteNode">
+        DELETE FROM kg_node WHERE id = #{id}
+    </delete>
+
+    <select id="selectEdges" resultType="com.zimo.regtech.graph.entity.KgEdge">
+        SELECT e.id, e.source_id, e.target_id, s.name AS source_name, t.name AS target_name,
+               e.relation, e.weight, e.create_time
+        FROM kg_edge e
+        LEFT JOIN kg_node s ON s.id = e.source_id
+        LEFT JOIN kg_node t ON t.id = e.target_id
+        ORDER BY e.id ASC
+        LIMIT #{limit}
+    </select>
+
+    <insert id="insertEdge" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO kg_edge (source_id, target_id, relation, weight)
+        VALUES (#{sourceId}, #{targetId}, #{relation}, #{weight})
+        ON CONFLICT (source_id, target_id, relation) DO NOTHING
+    </insert>
+
+    <delete id="deleteEdge">
+        DELETE FROM kg_edge WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteEdgesByNode">
+        DELETE FROM kg_edge WHERE source_id = #{nodeId} OR target_id = #{nodeId}
+    </delete>
+
+    <select id="countNodes" resultType="long">
+        SELECT COUNT(*) FROM kg_node
+    </select>
+
+    <select id="countEdges" resultType="long">
+        SELECT COUNT(*) FROM kg_edge
+    </select>
+
+    <select id="countByCategory" resultType="map">
+        SELECT category AS category, COUNT(*) AS total FROM kg_node GROUP BY category ORDER BY total DESC
+    </select>
+
+    <select id="selectArticlesForGraph" resultType="map">
+        SELECT code AS code, law_name AS law_name, article_no AS article_no, title AS title,
+               jurisdiction AS jurisdiction, tags AS tags
+        FROM legal_article
+        ORDER BY id ASC
+        LIMIT #{limit}
+    </select>
+
+    <delete id="clearEdges">
+        DELETE FROM kg_edge
+    </delete>
+
+    <delete id="clearNodes">
+        DELETE FROM kg_node
+    </delete>
+
+</mapper>

@@ -1,0 +1,248 @@
+:root {
+  /* 品牌：合规蓝（信任 / 权威 / 冷静）+ 法徽金（点睛） */
+  --rt-navy: #12386B;
+  --rt-navy-soft: #1C4C8A;
+  --rt-gold: #C6A15B;
+  --rt-gold-soft: #FBF5E8;
+
+  /* 画布：浅蓝；卡片保持纯白，靠蓝色描边与浅阴影分层 */
+  --rt-bg: #EDF3FC;
+  --rt-card: #FFFFFF;
+  --rt-border: #DCE7F6;
+  --rt-border-light: #EDF3FB;
+  --rt-shadow-card: 0 1px 2px rgba(18, 56, 107, 0.06);
+  --rt-shadow-card-hover: 0 4px 14px rgba(18, 56, 107, 0.1);
+
+  --rt-text: #16202E;
+  --rt-text-2: #526077;
+  --rt-text-3: #8492A6;
+
+  --rt-success: #12805C;
+  --rt-warning: #C2760A;
+  --rt-danger: #C0392B;
+  --rt-info: #2A6FD6;
+
+  --rt-radius: 10px;
+  --rt-topbar-h: 56px;
+  --rt-sidebar-w: 208px;
+
+  --sidebar-hover: #EFF5FD;
+  --sidebar-active: #E4EEFB;
+  --sidebar-active-text: var(--rt-navy);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--rt-bg);
+  background-image: linear-gradient(180deg, #E6EFFC 0%, rgba(237, 243, 252, 0) 260px);
+  color: var(--rt-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.rt-card {
+  background: var(--rt-card);
+  border: 1px solid var(--rt-border);
+  border-radius: var(--rt-radius);
+  box-shadow: var(--rt-shadow-card);
+}
+
+.rt-card + .rt-card {
+  margin-top: 12px;
+}
+
+.rt-card-hd {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--rt-border-light);
+  font-size: 13.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.rt-card-bd {
+  padding: 14px 18px;
+}
+
+.rt-muted {
+  color: var(--rt-text-2);
+}
+
+.rt-dim {
+  color: var(--rt-text-3);
+}
+
+.rt-sm {
+  font-size: 12px;
+}
+
+.rt-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* 指标卡 */
+.rt-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.rt-stat {
+  position: relative;
+  background: var(--rt-card);
+  border: 1px solid var(--rt-border);
+  border-radius: var(--rt-radius);
+  padding: 14px 16px;
+  overflow: hidden;
+  box-shadow: var(--rt-shadow-card);
+}
+
+.rt-stat::after {
+  content: '';
+  position: absolute;
+  right: -18px;
+  top: -18px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--rt-bg);
+}
+
+.rt-stat-label {
+  font-size: 12px;
+  color: var(--rt-text-3);
+  margin-bottom: 6px;
+}
+
+.rt-stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.rt-stat-foot {
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--rt-text-3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rt-stat.accent {
+  background: linear-gradient(135deg, var(--rt-navy) 0%, #1F5AA3 100%);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(18, 56, 107, 0.22);
+}
+
+.rt-stat.accent .rt-stat-label,
+.rt-stat.accent .rt-stat-foot {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.rt-stat.accent::after {
+  background: rgba(198, 161, 91, 0.16);
+}
+
+/* 页面容器 */
+.rt-page {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 18px 22px;
+}
+
+.rt-page-fixed {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 18px;
+  overflow: hidden;
+}
+
+.rt-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.rt-toolbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rt-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 2px 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rt-section-title::before {
+  content: '';
+  width: 3px;
+  height: 13px;
+  border-radius: 2px;
+  background: var(--rt-gold);
+}
+
+.rt-empty {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--rt-text-3);
+  font-size: 12.5px;
+}
+
+.rt-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  background: var(--rt-bg);
+  color: var(--rt-text-2);
+}
+
+.rt-tag.gold {
+  background: var(--rt-gold-soft);
+  color: #8A6A25;
+}
+
+@media (max-width: 1280px) {
+  .rt-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .rt-stat {
+    padding: 12px;
+  }
+  .rt-stat-value {
+    font-size: 20px;
+  }
+}

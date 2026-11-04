@@ -1,0 +1,65 @@
+server:
+  port: 28105
+  servlet:
+    context-path: /api/regtech/ai
+
+spring:
+  application:
+    name: jv-regtech-ai
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${MYSQL_URL:jdbc:mysql://127.0.0.1:3306/regtech_platform?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:Root@123456}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  mvc:
+    async:
+      request-timeout: 300000
+
+regtech:
+  jwt:
+    secret: ${REGTECH_JWT_SECRET:ai-ncs-regtech-jwt-secret-key-change-me-please}
+  auth:
+    exclude-paths:
+      - /embeddings
+      - /v1/embeddings
+      - /internal/chat
+      # 供总览服务内部聚合
+      - /stats
+      - /health
+      - /health/**
+      - /actuator/**
+      - /error
+  ai:
+    ollama:
+      # 本地 Ollama 服务地址；设为远程地址亦可
+      base-url: ${OLLAMA_BASE_URL:http://127.0.0.1:11434}
+      default-model: ${OLLAMA_CHAT_MODEL:gpt-oss:20b}
+      embedding-model: ${OLLAMA_EMBED_MODEL:qwen3-embedding:0.6b}
+      keep-alive: 30m
+  gateway:
+    enabled: ${GATEWAY_ENABLED:true}
+    base-url: ${GATEWAY_BASE_URL:http://127.0.0.1:28090/api}
+    app-id: app-regtech
+    app-name: NCS RegTech 监管科技
+    service-name: jv-regtech-ai
+    port: 28105
+    ip: ${GATEWAY_IP:127.0.0.1}
+    trace:
+      enabled: true
+      # 流式响应不采集报文，避免堆积
+      exclude-paths:
+        - /actuator
+        - /error
+        - /health
+
+mybatis:
+  mapper-locations: classpath*:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    com.zimo.regtech: info

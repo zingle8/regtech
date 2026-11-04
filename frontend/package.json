@@ -1,0 +1,30 @@
+{
+  "name": "@regtech/frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "NCS RegTech 前端工程（npm workspaces，按业务模块拆分）",
+  "workspaces": [
+    "packages/*",
+    "modules/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @regtech/portal",
+    "build": "npm run build --workspace @regtech/portal",
+    "preview": "npm run preview --workspace @regtech/portal"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "axios": "^1.7.7",
+    "echarts": "^5.5.1",
+    "element-plus": "^2.8.8",
+    "pinia": "^2.2.6",
+    "vue": "^3.5.13",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.0",
+    "vite": "^5.4.11"
+  }
+}

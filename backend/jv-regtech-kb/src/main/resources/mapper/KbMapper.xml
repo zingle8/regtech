@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zimo.regtech.kb.mapper.KbMapper">
+
+    <!-- ============================================================ 数据集 -->
+
+    <select id="selectDatasets" resultType="com.zimo.regtech.kb.entity.Dataset">
+        SELECT id, code, name, description, jurisdiction, embedding_model, doc_count, chunk_count,
+               create_time, update_time
+        FROM kb_dataset
+        <where>
+            <if test="keyword != null and keyword != ''">
+                (name ILIKE CONCAT('%', #{keyword}, '%') OR code ILIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY id ASC
+    </select>
+
+    <select id="selectDataset" resultType="com.zimo.regtech.kb.entity.Dataset">
+        SELECT id, code, name, description, jurisdiction, embedding_model, doc_count, chunk_count,
+               create_time, update_time
+        FROM kb_dataset WHERE id = #{id}
+    </select>
+
+    <select id="countDatasets" resultType="long">
+        SELECT COUNT(*) FROM kb_dataset
+    </select>
+
+    <insert id="insertDataset" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO kb_dataset (code, name, description, jurisdiction, embedding_model, doc_count, chunk_count)
+        VALUES (#{code}, #{name}, #{description}, #{jurisdiction}, #{embeddingModel}, 0, 0)
+    </insert>
+
+    <update id="updateDataset">
+        UPDATE kb_dataset
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="jurisdiction != null">jurisdiction = #{jurisdiction},</if>
+            <if test="embeddingModel != null">embedding_model = #{embeddingModel},</if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteDataset">
+        DELETE FROM kb_dataset WHERE id = #{id}
+    </delete>
+
+    <update id="refreshDatasetStats">
+        UPDATE kb_dataset d
+        SET doc_count = (SELECT COUNT(*) FROM kb_document x WHERE x.dataset_id = d.id),
+            chunk_count = (SELECT COUNT(*) FROM kb_chunk c WHERE c.dataset_id = d.id),
+            update_time = NOW()
+        WHERE d.id = #{id}
+    </update>
+
+    <!-- ============================================================ 文档 -->
+
+    <select id="countDocuments" resultType="long">
+        SELECT COUNT(*) FROM kb_document
+        <where>
+            <if test="datasetId != null">dataset_id = #{datasetId}</if>
+            <if test="keyword != null and keyword != ''">AND title ILIKE CONCAT('%', #{keyword}, '%')</if>
+        </where>
+    </select>
+
+    <select id="selectDocuments" resultType="com.zimo.regtech.kb.entity.KbDocument">
+        SELECT d.id, d.dataset_id, s.name AS dataset_name, d.title, d.source_type, d.jurisdiction,
+               d.effective_date, d.status, d.char_count, d.chunk_count, d.create_time, d.update_time
+        FROM kb_document d
+        LEFT JOIN kb_dataset s ON s.id = d.dataset_id
+        <where>
+            <if test="datasetId != null">d.dataset_id = #{datasetId}</if>
+            <if test="keyword != null and keyword != ''">AND d.title ILIKE CONCAT('%', #{keyword}, '%')</if>
+        </where>
+        ORDER BY d.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="selectDocument" resultType="com.zimo.regtech.kb.entity.KbDocument">
+        SELECT id, dataset_id, title, source_type, jurisdiction, effective_date, status, content,
+               char_count, chunk_count, create_time, update_time
+        FROM kb_document WHERE id = #{id}
+    </select>
+
+    <insert id="insertDocument" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO kb_document (dataset_id, title, source_type, jurisdiction, effective_date, status,
+                                 content, char_count, chunk_count)
+        VALUES (#{datasetId}, #{title}, #{sourceType}, #{jurisdiction}, #{effectiveDate}, #{status},
+                #{content}, #{charCount}, 0)
+    </insert>
+
+    <delete id="deleteDocument">
+        DELETE FROM kb_document WHERE id = #{id}
+    </delete>
+
+    <update id="updateDocumentChunkCount">
+        UPDATE kb_document SET chunk_count = #{count} WHERE id = #{id}
+    </update>
+
+    <!-- ============================================================ 分块 -->
+
+    <insert id="insertChunk" useGeneratedKeys="true" keyProperty="chunk.id">
+        INSERT INTO kb_chunk (dataset_id, document_id, chunk_no, article_no, content, tokens, embedding)
+        VALUES (#{chunk.datasetId}, #{chunk.documentId}, #{chunk.chunkNo}, #{chunk.articleNo},
+                #{chunk.content}, #{chunk.tokens},
+                <choose>
+                    <when test="embedding != null">CAST(#{embedding} AS vector)</when>
+                    <otherwise>NULL</otherwise>
+                </choose>)
+    </insert>
+
+    <delete id="deleteChunksByDocument">
+        DELETE FROM kb_chunk WHERE document_id = #{documentId}
+    </delete>
+
+    <select id="countChunks" resultType="long">
+        SELECT COUNT(*) FROM kb_chunk
+    </select>
+
+    <select id="searchChunksByVector" resultType="com.zimo.regtech.kb.entity.KbChunk">
+        SELECT c.id, c.dataset_id, c.document_id, d.title AS document_title, c.chunk_no, c.article_no,
+               c.content, c.tokens,
+               ROUND((1 - (c.embedding &lt;=&gt; CAST(#{vector} AS vector)))::numeric, 4)::double precision AS score
+        FROM kb_chunk c
+        LEFT JOIN kb_document d ON d.id = c.document_id
+        WHERE c.embedding IS NOT NULL
+        <if test="datasetId != null">AND c.dataset_id = #{datasetId}</if>
+        ORDER BY c.embedding &lt;=&gt; CAST(#{vector} AS vector)
+        LIMIT #{limit}
+    </select>
+
+    <select id="searchChunksByKeyword" resultType="com.zimo.regtech.kb.entity.KbChunk">
+        SELECT c.id, c.dataset_id, c.document_id, d.title AS document_title, c.chunk_no, c.article_no,
+               c.content, c.tokens, 0.5::double precision AS score
+        FROM kb_chunk c
+        LEFT JOIN kb_document d ON d.id = c.document_id
+        WHERE c.content ILIKE CONCAT('%', #{keyword}, '%')
+        <if test="datasetId != null">AND c.dataset_id = #{datasetId}</if>
+        ORDER BY c.id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="searchChunksByTerms" resultType="com.zimo.regtech.kb.entity.KbChunk">
+        SELECT c.id, c.dataset_id, c.document_id, d.title AS document_title, c.chunk_no, c.article_no,
+               c.content, c.tokens,
+               (
+                 <foreach collection="terms" item="term" separator=" + ">
+                   CASE WHEN c.content ILIKE CONCAT('%', #{term}, '%') THEN 1 ELSE 0 END
+                 </foreach>
+               )::double precision / #{termCount} AS score
+        FROM kb_chunk c
+        LEFT JOIN kb_document d ON d.id = c.document_id
+        WHERE (
+          <foreach collection="terms" item="term" separator=" OR ">
+            c.content ILIKE CONCAT('%', #{term}, '%')
+          </foreach>
+        )
+        <if test="datasetId != null">AND c.dataset_id = #{datasetId}</if>
+        ORDER BY score DESC, c.id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectChunksMissingEmbedding" resultType="com.zimo.regtech.kb.entity.KbChunk">
+        SELECT id, dataset_id, document_id, chunk_no, article_no, content, tokens
+        FROM kb_chunk
+        WHERE embedding IS NULL AND content IS NOT NULL
+        ORDER BY id ASC
+        LIMIT #{limit}
+    </select>
+
+    <update id="updateChunkEmbedding">
+        UPDATE kb_chunk SET embedding = CAST(#{embedding} AS vector) WHERE id = #{id}
+    </update>
+
+    <select id="selectArticlesMissingEmbedding" resultType="com.zimo.regtech.kb.entity.LegalArticle">
+        SELECT id, code, law_name, article_no, title, jurisdiction, status, content, tags, version
+        FROM legal_article
+        WHERE embedding IS NULL AND content IS NOT NULL
+        ORDER BY id ASC
+        LIMIT #{limit}
+    </select>
+
+    <update id="updateArticleEmbedding">
+        UPDATE legal_article SET embedding = CAST(#{embedding} AS vector) WHERE id = #{id}
+    </update>
+
+    <!-- ============================================================ 法条 -->
+
+    <select id="countArticles" resultType="long">
+        SELECT COUNT(*) FROM legal_article
+        <where>
+            <if test="keyword != null and keyword != ''">
+                (content ILIKE CONCAT('%', #{keyword}, '%')
+                 OR title ILIKE CONCAT('%', #{keyword}, '%')
+                 OR law_name ILIKE CONCAT('%', #{keyword}, '%')
+                 OR article_no ILIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="jurisdiction != null and jurisdiction != ''">AND jurisdiction = #{jurisdiction}</if>
+        </where>
+    </select>
+
+    <select id="selectArticles" resultType="com.zimo.regtech.kb.entity.LegalArticle">
+        SELECT id, code, law_name, article_no, title, jurisdiction, effective_date, status,
+               content, tags, version, create_time, update_time
+        FROM legal_article
+        <where>
+            <if test="keyword != null and keyword != ''">
+                (content ILIKE CONCAT('%', #{keyword}, '%')
+                 OR title ILIKE CONCAT('%', #{keyword}, '%')
+                 OR law_name ILIKE CONCAT('%', #{keyword}, '%')
+                 OR article_no ILIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="jurisdiction != null and jurisdiction != ''">AND jurisdiction = #{jurisdiction}</if>
+        </where>
+        ORDER BY id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="selectArticle" resultType="com.zimo.regtech.kb.entity.LegalArticle">
+        SELECT id, code, law_name, article_no, title, jurisdiction, effective_date, status,
+               content, tags, version, create_time, update_time
+        FROM legal_article WHERE id = #{id}
+    </select>
+
+    <insert id="insertArticle" useGeneratedKeys="true" keyProperty="article.id">
+        INSERT INTO legal_article (code, law_name, article_no, title, jurisdiction, effective_date,
+                                   status, content, tags, version, embedding)
+        VALUES (#{article.code}, #{article.lawName}, #{article.articleNo}, #{article.title},
+                #{article.jurisdiction}, #{article.effectiveDate}, #{article.status},
+                #{article.content}, #{article.tags}, #{article.version},
+                <choose>
+                    <when test="embedding != null">CAST(#{embedding} AS vector)</when>
+                    <otherwise>NULL</otherwise>
+                </choose>)
+    </insert>
+
+    <update id="updateArticle">
+        UPDATE legal_article
+        <set>
+            <if test="article.code != null">code = #{article.code},</if>
+            <if test="article.lawName != null">law_name = #{article.lawName},</if>
+            <if test="article.articleNo != null">article_no = #{article.articleNo},</if>
+            <if test="article.title != null">title = #{article.title},</if>
+            <if test="article.jurisdiction != null">jurisdiction = #{article.jurisdiction},</if>
+            <if test="article.effectiveDate != null">effective_date = #{article.effectiveDate},</if>
+            <if test="article.status != null">status = #{article.status},</if>
+            <if test="article.content != null">content = #{article.content},</if>
+            <if test="article.tags != null">tags = #{article.tags},</if>
+            <if test="article.version != null">version = #{article.version},</if>
+            <if test="embedding != null">embedding = CAST(#{embedding} AS vector),</if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{article.id}
+    </update>
+
+    <delete id="deleteArticle">
+        DELETE FROM legal_article WHERE id = #{id}
+    </delete>
+
+    <select id="searchArticlesByVector" resultType="com.zimo.regtech.kb.entity.LegalArticle">
+        SELECT id, code, law_name, article_no, title, jurisdiction, effective_date, status,
+               content, tags, version,
+               ROUND((1 - (embedding &lt;=&gt; CAST(#{vector} AS vector)))::numeric, 4)::double precision AS score
+        FROM legal_article
+        WHERE embedding IS NOT NULL
+        ORDER BY embedding &lt;=&gt; CAST(#{vector} AS vector)
+        LIMIT #{limit}
+    </select>
+
+    <select id="searchArticlesByKeyword" resultType="com.zimo.regtech.kb.entity.LegalArticle">
+        SELECT id, code, law_name, article_no, title, jurisdiction, effective_date, status,
+               content, tags, version, 0.5::double precision AS score
+        FROM legal_article
+        WHERE (content ILIKE CONCAT('%', #{keyword}, '%')
+               OR title ILIKE CONCAT('%', #{keyword}, '%')
+               OR law_name ILIKE CONCAT('%', #{keyword}, '%')
+               OR article_no ILIKE CONCAT('%', #{keyword}, '%'))
+        <if test="jurisdiction != null and jurisdiction != ''">AND jurisdiction = #{jurisdiction}</if>
+        ORDER BY id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="searchArticlesByVectorInJurisdiction" resultType="com.zimo.regtech.kb.entity.LegalArticle">
+        SELECT id, code, law_name, article_no, title, jurisdiction, effective_date, status,
+               content, tags, version,
+               ROUND((1 - (embedding &lt;=&gt; CAST(#{vector} AS vector)))::numeric, 4)::double precision AS score
+        FROM legal_article
+        WHERE embedding IS NOT NULL AND jurisdiction = #{jurisdiction}
+        ORDER BY embedding &lt;=&gt; CAST(#{vector} AS vector)
+        LIMIT #{limit}
+    </select>
+
+    <select id="similarityBetween" resultType="double">
+        SELECT ROUND((1 - (l.embedding &lt;=&gt; r.embedding))::numeric, 4)::double precision
+        FROM legal_article l, legal_article r
+        WHERE l.id = #{leftId} AND r.id = #{rightId}
+          AND l.embedding IS NOT NULL AND r.embedding IS NOT NULL
+    </select>
+
+    <select id="selectArticleCitations" resultType="map">
+        SELECT a.id            AS article_id,
+               a.law_name      AS law_name,
+               a.article_no    AS article_no,
+               a.jurisdiction  AS jurisdiction,
+               a.status        AS status,
+               a.version       AS version,
+               a.effective_date AS effective_date,
+               a.update_time   AS article_update_time,
+               d.id            AS document_id,
+               d.title         AS document_title,
+               d.source_type   AS source_type,
+               d.create_time   AS document_create_time,
+               ds.id           AS dataset_id,
+               ds.code         AS dataset_code,
+               ds.name         AS dataset_name
+        FROM legal_article a
+        LEFT JOIN kb_document d
+               ON d.title = a.law_name
+               OR d.title LIKE CONCAT(a.law_name, '%')
+               OR a.law_name LIKE CONCAT(d.title, '%')
+        LEFT JOIN kb_dataset ds ON ds.id = d.dataset_id
+        WHERE a.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+        ORDER BY a.id, d.id
+    </select>
+
+    <select id="countArticlesByJurisdiction" resultType="map">
+        SELECT jurisdiction AS jurisdiction, COUNT(*) AS total
+        FROM legal_article
+        GROUP BY jurisdiction
+        ORDER BY total DESC
+    </select>
+
+    <!-- ============================================================ 条文变更日志 -->
+
+    <insert id="insertArticleLog" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO kb_article_log (article_id, action, code, law_name, article_no, title, summary, operator_name)
+        VALUES (#{articleId}, #{action}, #{code}, #{lawName}, #{articleNo}, #{title}, #{summary}, #{operatorName})
+    </insert>
+
+    <select id="selectArticleLogs" resultType="com.zimo.regtech.kb.entity.ArticleLog">
+        SELECT id, article_id, action, code, law_name, article_no, title, summary, operator_name, operate_time
+        FROM kb_article_log
+        ORDER BY operate_time DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- ============================================================ 差异记录 -->
+
+    <insert id="insertDiff" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO kb_diff (left_id, right_id, left_title, right_title, change_type, similarity, diff_json)
+        VALUES (#{leftId}, #{rightId}, #{leftTitle}, #{rightTitle}, #{changeType}, #{similarity},
+                CAST(#{diffJson} AS jsonb))
+    </insert>
+
+    <select id="countDiffs" resultType="long">
+        SELECT COUNT(*) FROM kb_diff
+    </select>
+
+    <select id="selectDiffs" resultType="com.zimo.regtech.kb.entity.DiffRecord">
+        SELECT id, left_id, right_id, left_title, right_title, change_type, similarity,
+               diff_json::text AS diff_json, create_time
+        FROM kb_diff
+        ORDER BY id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="selectDiff" resultType="com.zimo.regtech.kb.entity.DiffRecord">
+        SELECT id, left_id, right_id, left_title, right_title, change_type, similarity,
+               diff_json::text AS diff_json, create_time
+        FROM kb_diff WHERE id = #{id}
+    </select>
+
+    <delete id="deleteDiff">
+        DELETE FROM kb_diff WHERE id = #{id}
+    </delete>
+
+</mapper>

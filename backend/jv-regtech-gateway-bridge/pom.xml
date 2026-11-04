@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.zimo.regtech</groupId>
+    <artifactId>jv-regtech-platform</artifactId>
+    <version>1.0.0</version>
+  </parent>
+
+  <artifactId>jv-regtech-gateway-bridge</artifactId>
+  <name>jv-regtech-gateway-bridge</name>
+  <description>API 网关平台接入桥：自动注册 / 心跳 / 调用日志采集上报（协议与 jv-gateway-client-starter 一致）</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+  </dependencies>
+</project>

@@ -1,0 +1,46 @@
+server:
+  port: 28101
+  servlet:
+    context-path: /api/regtech/overview
+
+spring:
+  application:
+    name: jv-regtech-overview
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${MYSQL_URL:jdbc:mysql://127.0.0.1:3306/regtech_platform?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:Root@123456}
+
+regtech:
+  jwt:
+    secret: ${REGTECH_JWT_SECRET:ai-ncs-regtech-jwt-secret-key-change-me-please}
+  auth:
+    exclude-paths:
+      - /health
+      - /actuator/**
+      - /error
+  services:
+    kb: ${KB_BASE:http://127.0.0.1:28102/api/regtech/kb}
+    graph: ${GRAPH_BASE:http://127.0.0.1:28103/api/regtech/graph}
+    ontology: ${ONTOLOGY_BASE:http://127.0.0.1:28104/api/regtech/ontology}
+    ai: ${AI_BASE:http://127.0.0.1:28105/api/regtech/ai}
+  gateway:
+    enabled: ${GATEWAY_ENABLED:true}
+    base-url: ${GATEWAY_BASE_URL:http://127.0.0.1:28090/api}
+    app-id: app-regtech
+    app-name: NCS RegTech 监管科技
+    service-name: jv-regtech-overview
+    port: 28101
+    ip: ${GATEWAY_IP:127.0.0.1}
+    trace:
+      enabled: true
+
+mybatis:
+  mapper-locations: classpath*:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    com.zimo.regtech: info

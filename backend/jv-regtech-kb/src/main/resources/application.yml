@@ -1,0 +1,53 @@
+server:
+  port: 28102
+  servlet:
+    context-path: /api/regtech/kb
+
+spring:
+  application:
+    name: jv-regtech-kb
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: ${PG_URL:jdbc:postgresql://127.0.0.1:5432/regtech_kb}
+    username: ${PG_USERNAME:postgres}
+    password: ${PG_PASSWORD:Pg@123456}
+    hikari:
+      maximum-pool-size: 4
+      minimum-idle: 1
+      connection-timeout: 5000
+
+regtech:
+  jwt:
+    secret: ${REGTECH_JWT_SECRET:ai-ncs-regtech-jwt-secret-key-change-me-please}
+  auth:
+    exclude-paths:
+      - /stats
+      # 供本体 RAG 内部调用（只读检索）
+      - /search
+      - /articles/search
+      - /health
+      - /actuator/**
+      - /error
+  services:
+    ai: ${AI_BASE:http://127.0.0.1:28105/api/regtech/ai}
+  kb:
+    embedding-model: ${OLLAMA_EMBED_MODEL:qwen3-embedding:0.6b}
+  gateway:
+    enabled: ${GATEWAY_ENABLED:true}
+    base-url: ${GATEWAY_BASE_URL:http://127.0.0.1:28090/api}
+    app-id: app-regtech
+    app-name: NCS RegTech 监管科技
+    service-name: jv-regtech-kb
+    port: 28102
+    ip: ${GATEWAY_IP:127.0.0.1}
+    trace:
+      enabled: true
+
+mybatis:
+  mapper-locations: classpath*:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    com.zimo.regtech: info

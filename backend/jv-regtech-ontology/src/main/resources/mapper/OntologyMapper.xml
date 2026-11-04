@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zimo.regtech.ontology.mapper.OntologyMapper">
+
+    <!-- ============================================================ 本体类 -->
+
+    <select id="selectClasses" resultType="com.zimo.regtech.ontology.entity.OntologyClass">
+        SELECT id, code, name, parent_id, description, jurisdiction, create_time
+        FROM ontology_class
+        <where>
+            <if test="keyword != null and keyword != ''">
+                (name ILIKE CONCAT('%', #{keyword}, '%') OR description ILIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY id ASC
+    </select>
+
+    <select id="selectClass" resultType="com.zimo.regtech.ontology.entity.OntologyClass">
+        SELECT id, code, name, parent_id, description, jurisdiction, create_time
+        FROM ontology_class WHERE id = #{id}
+    </select>
+
+    <select id="selectClassByCode" resultType="com.zimo.regtech.ontology.entity.OntologyClass">
+        SELECT id, code, name, parent_id, description, jurisdiction, create_time
+        FROM ontology_class WHERE code = #{code}
+    </select>
+
+    <insert id="insertClass" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ontology_class (code, name, parent_id, description, jurisdiction)
+        VALUES (#{code}, #{name}, #{parentId}, #{description}, #{jurisdiction})
+    </insert>
+
+    <update id="updateClass">
+        UPDATE ontology_class
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="parentId != null">parent_id = #{parentId},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="jurisdiction != null">jurisdiction = #{jurisdiction},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteClass">
+        DELETE FROM ontology_class WHERE id = #{id}
+    </delete>
+
+    <select id="countClasses" resultType="long">
+        SELECT COUNT(*) FROM ontology_class
+    </select>
+
+    <select id="countChildren" resultType="long">
+        SELECT COUNT(*) FROM ontology_class WHERE parent_id = #{id}
+    </select>
+
+    <!-- ============================================================ 属性 -->
+
+    <select id="selectProperties" resultType="com.zimo.regtech.ontology.entity.OntologyProperty">
+        SELECT id, class_id, code, name, data_type, required, description
+        FROM ontology_property
+        <where>
+            <if test="classId != null">class_id = #{classId}</if>
+        </where>
+        ORDER BY id ASC
+    </select>
+
+    <insert id="insertProperty" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ontology_property (class_id, code, name, data_type, required, description)
+        VALUES (#{classId}, #{code}, #{name}, #{dataType}, #{required}, #{description})
+    </insert>
+
+    <delete id="deleteProperty">
+        DELETE FROM ontology_property WHERE id = #{id}
+    </delete>
+
+    <select id="countProperties" resultType="long">
+        SELECT COUNT(*) FROM ontology_property
+    </select>
+
+    <!-- ============================================================ 个体 -->
+
+    <select id="selectIndividuals" resultType="com.zimo.regtech.ontology.entity.OntologyIndividual">
+        SELECT i.id, i.class_id, c.name AS class_name, i.name, i.props::text AS props,
+               i.description, i.create_time
+        FROM ontology_individual i
+        LEFT JOIN ontology_class c ON c.id = i.class_id
+        <where>
+            <if test="classId != null">i.class_id = #{classId}</if>
+            <if test="keyword != null and keyword != ''">
+                AND (i.name ILIKE CONCAT('%', #{keyword}, '%')
+                     OR i.description ILIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY i.id DESC
+        LIMIT 200
+    </select>
+
+    <select id="selectIndividual" resultType="com.zimo.regtech.ontology.entity.OntologyIndividual">
+        SELECT i.id, i.class_id, c.name AS class_name, i.name, i.props::text AS props,
+               i.description, i.create_time
+        FROM ontology_individual i
+        LEFT JOIN ontology_class c ON c.id = i.class_id
+        WHERE i.id = #{id}
+    </select>
+
+    <insert id="insertIndividual" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ontology_individual (class_id, name, props, description)
+        VALUES (#{classId}, #{name}, CAST(#{props} AS jsonb), #{description})
+    </insert>
+
+    <update id="updateIndividual">
+        UPDATE ontology_individual
+        <set>
+            <if test="classId != null">class_id = #{classId},</if>
+            <if test="name != null">name = #{name},</if>
+            <if test="props != null">props = CAST(#{props} AS jsonb),</if>
+            <if test="description != null">description = #{description},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteIndividual">
+        DELETE FROM ontology_individual WHERE id = #{id}
+    </delete>
+
+    <select id="countIndividuals" resultType="long">
+        SELECT COUNT(*) FROM ontology_individual
+    </select>
+
+</mapper>

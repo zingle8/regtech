@@ -1,0 +1,113 @@
+/* Element Plus 轻量定制：与合规蓝 / 法徽金品牌色对齐 */
+:root {
+  --el-color-primary: #12386B;
+  --el-color-primary-light-3: #41638F;
+  --el-color-primary-light-5: #7A94B7;
+  --el-color-primary-light-7: #B2C5DC;
+  --el-color-primary-light-8: #CFDCEE;
+  --el-color-primary-light-9: #E9F1FB;
+  --el-color-primary-dark-2: #0C2A55;
+  --el-border-radius-base: 6px;
+  --el-font-size-base: 13px;
+  --el-text-color-primary: #16202E;
+  --el-text-color-regular: #526077;
+  --el-border-color: #DCE7F6;
+  --el-border-color-light: #E8F0FA;
+  --el-fill-color-light: #F2F7FE;
+}
+
+.el-button--small {
+  font-size: 12px;
+}
+
+.el-table {
+  font-size: 12.5px;
+}
+
+.el-table th.el-table__cell {
+  background: #F4F9FF !important;
+  color: var(--rt-text-2);
+  font-weight: 500;
+}
+
+.el-table .cell {
+  line-height: 1.5;
+}
+
+.el-dialog__header {
+  padding: 16px 20px 10px;
+  margin-right: 0;
+}
+
+.el-dialog__title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.el-drawer__header {
+  margin-bottom: 12px;
+  padding: 16px 20px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--rt-text);
+}
+
+.el-tag {
+  border-radius: 4px;
+}
+
+.el-textarea__inner,
+.el-input__inner {
+  font-family: inherit;
+}
+
+/* 表格卡片底部 */
+.rt-card-ft {
+  padding: 10px 18px;
+  border-top: 1px solid var(--rt-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* 检索结果卡片 */
+.rt-result {
+  border: 1px solid var(--rt-border-light);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  transition: border-color 0.2s;
+}
+
+.rt-result:hover {
+  border-color: #B9CDE6;
+}
+
+.rt-result-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.rt-result-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.rt-result-body {
+  color: var(--rt-text-2);
+  font-size: 12.5px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.rt-score {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--rt-gold);
+  background: var(--rt-gold-soft);
+  padding: 1px 8px;
+  border-radius: 10px;
+}

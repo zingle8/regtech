@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zimo.regtech.user.mapper.UserMapper">
+
+    <sql id="columns">
+        id, username, password, nickname, email, phone, role, status, token_version,
+        last_login_time, create_time, update_time
+    </sql>
+
+    <sql id="pageWhere">
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (username LIKE CONCAT('%', #{keyword}, '%')
+                 OR nickname LIKE CONCAT('%', #{keyword}, '%')
+                 OR email LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="role != null and role != ''">
+            AND role = #{role}
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+    </sql>
+
+    <select id="selectById" resultType="com.zimo.regtech.user.entity.User">
+        SELECT <include refid="columns"/> FROM tb_rt_user WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="selectByUsername" resultType="com.zimo.regtech.user.entity.User">
+        SELECT <include refid="columns"/> FROM tb_rt_user
+        WHERE username = #{username} AND deleted = 0 LIMIT 1
+    </select>
+
+    <select id="countByUsername" resultType="long">
+        SELECT COUNT(*) FROM tb_rt_user
+        WHERE username = #{username} AND deleted = 0
+        <if test="excludeId != null">
+            AND id != #{excludeId}
+        </if>
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM tb_rt_user WHERE deleted = 0
+    </select>
+
+    <select id="countByCondition" resultType="long">
+        SELECT COUNT(*) FROM tb_rt_user
+        <include refid="pageWhere"/>
+    </select>
+
+    <select id="selectPage" resultType="com.zimo.regtech.user.entity.User">
+        SELECT <include refid="columns"/> FROM tb_rt_user
+        <include refid="pageWhere"/>
+        ORDER BY id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO tb_rt_user (username, password, nickname, email, phone, role, status, token_version)
+        VALUES (#{username}, #{password}, #{nickname}, #{email}, #{phone}, #{role}, #{status}, 0)
+    </insert>
+
+    <update id="update">
+        UPDATE tb_rt_user
+        <set>
+            <if test="nickname != null">nickname = #{nickname},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="role != null and role != ''">role = #{role},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="updatePassword">
+        UPDATE tb_rt_user SET password = #{password} WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="updateStatus">
+        UPDATE tb_rt_user SET status = #{status} WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="updateLoginSuccess">
+        UPDATE tb_rt_user SET last_login_time = #{time}, token_version = token_version WHERE id = #{id}
+    </update>
+
+    <update id="bumpTokenVersion">
+        UPDATE tb_rt_user SET token_version = token_version + 1 WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        UPDATE tb_rt_user SET deleted = 1 WHERE id = #{id}
+    </update>
+
+</mapper>

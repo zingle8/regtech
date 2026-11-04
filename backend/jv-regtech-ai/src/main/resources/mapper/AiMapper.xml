@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zimo.regtech.ai.mapper.AiMapper">
+
+    <insert id="insertConversation" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO tb_rt_ai_conversation (user_id, title, model, scene, message_count)
+        VALUES (#{userId}, #{title}, #{model}, #{scene}, 0)
+    </insert>
+
+    <update id="updateConversationTitle">
+        UPDATE tb_rt_ai_conversation SET title = #{title} WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="touchConversation">
+        UPDATE tb_rt_ai_conversation
+        SET message_count = message_count + #{count},
+            model = #{model}
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="deleteConversation">
+        UPDATE tb_rt_ai_conversation SET deleted = 1 WHERE id = #{id}
+    </update>
+
+    <select id="selectConversation" resultType="com.zimo.regtech.ai.entity.Conversation">
+        SELECT id, user_id, title, model, scene, message_count, create_time, update_time
+        FROM tb_rt_ai_conversation
+        WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="selectConversations" resultType="com.zimo.regtech.ai.entity.Conversation">
+        SELECT id, user_id, title, model, scene, message_count, create_time, update_time
+        FROM tb_rt_ai_conversation
+        WHERE deleted = 0
+        <if test="userId != null">
+            AND user_id = #{userId}
+        </if>
+        ORDER BY update_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <insert id="insertMessage" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO tb_rt_ai_message (conversation_id, role, content, tokens, cost_ms, sources)
+        VALUES (#{conversationId}, #{role}, #{content}, #{tokens}, #{costMs}, #{sources})
+    </insert>
+
+    <select id="selectMessages" resultType="com.zimo.regtech.ai.entity.ChatMessage">
+        SELECT id, conversation_id, role, content, tokens, cost_ms, sources, create_time
+        FROM tb_rt_ai_message
+        WHERE conversation_id = #{conversationId} AND deleted = 0
+        ORDER BY id ASC
+    </select>
+
+    <select id="countConversations" resultType="long">
+        SELECT COUNT(*) FROM tb_rt_ai_conversation WHERE deleted = 0
+    </select>
+
+    <select id="countMessages" resultType="long">
+        SELECT COUNT(*) FROM tb_rt_ai_message WHERE deleted = 0
+    </select>
+
+    <select id="countTodayMessages" resultType="long">
+        SELECT COUNT(*) FROM tb_rt_ai_message
+        WHERE deleted = 0 AND create_time >= CURDATE()
+    </select>
+
+    <select id="countByModel" resultType="map">
+        SELECT model AS model, COUNT(*) AS total
+        FROM tb_rt_ai_conversation
+        WHERE deleted = 0
+        GROUP BY model
+        ORDER BY total DESC
+    </select>
+
+</mapper>

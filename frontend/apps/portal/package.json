@@ -1,0 +1,21 @@
+{
+  "name": "@regtech/portal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@regtech/module-ai": "1.0.0",
+    "@regtech/module-graph": "1.0.0",
+    "@regtech/module-kb": "1.0.0",
+    "@regtech/module-ontology": "1.0.0",
+    "@regtech/module-overview": "1.0.0",
+    "@regtech/module-system": "1.0.0",
+    "@regtech/shared": "1.0.0",
+    "@regtech/ui": "1.0.0"
+  }
+}

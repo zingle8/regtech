@@ -1,0 +1,49 @@
+server:
+  port: 28104
+  servlet:
+    context-path: /api/regtech/ontology
+
+spring:
+  application:
+    name: jv-regtech-ontology
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: ${PG_URL:jdbc:postgresql://127.0.0.1:5432/regtech_kb}
+    username: ${PG_USERNAME:postgres}
+    password: ${PG_PASSWORD:Pg@123456}
+    hikari:
+      maximum-pool-size: 4
+      minimum-idle: 1
+      connection-timeout: 5000
+
+regtech:
+  jwt:
+    secret: ${REGTECH_JWT_SECRET:ai-ncs-regtech-jwt-secret-key-change-me-please}
+  auth:
+    exclude-paths:
+      - /stats
+      - /health
+      - /actuator/**
+      - /error
+  services:
+    kb: ${KB_BASE:http://127.0.0.1:28102/api/regtech/kb}
+    ai: ${AI_BASE:http://127.0.0.1:28105/api/regtech/ai}
+  gateway:
+    enabled: ${GATEWAY_ENABLED:true}
+    base-url: ${GATEWAY_BASE_URL:http://127.0.0.1:28090/api}
+    app-id: app-regtech
+    app-name: NCS RegTech 监管科技
+    service-name: jv-regtech-ontology
+    port: 28104
+    ip: ${GATEWAY_IP:127.0.0.1}
+    trace:
+      enabled: true
+
+mybatis:
+  mapper-locations: classpath*:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    com.zimo.regtech: info

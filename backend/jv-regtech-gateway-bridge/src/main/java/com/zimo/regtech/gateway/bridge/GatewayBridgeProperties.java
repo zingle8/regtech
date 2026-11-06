@@ -36,6 +36,10 @@ public class GatewayBridgeProperties {
 
     private String appName = "NCS RegTech 监管科技";
 
+    /** 服务ID（英文唯一标识），如 jv-regtech-kb；留空时回退使用 serviceName（兼容旧配置） */
+    private String serviceId = "";
+
+    /** 服务名（中文显示名），如 知识库服务；留空时服务端显示同 serviceId */
     private String serviceName = "regtech-service";
 
     private String ip = "127.0.0.1";

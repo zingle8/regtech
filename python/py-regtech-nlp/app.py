@@ -41,6 +41,8 @@ from jv_gateway.wsgi import WSGITraceMiddleware           # noqa: E402
 # ---------------------------------------------------------------- 配置
 
 SERVICE_NAME = os.environ.get("SERVICE_NAME", "py-regtech-nlp")
+# 服务名（中文显示名）：网关平台服务发现页展示用，与「服务ID（英文）」分离
+SERVICE_DISPLAY_NAME = os.environ.get("SERVICE_DISPLAY_NAME", "NLP 文本分析服务")
 PORT = int(os.environ.get("PORT", "28110"))
 CONTEXT = "/api/regtech/nlp"
 APP_ID = os.environ.get("APP_ID", "app-regtech")
@@ -295,7 +297,9 @@ def main() -> None:
         server_addr=GATEWAY_BASE_URL,
         app_id=APP_ID,
         app_name=APP_NAME,
-        service_name=SERVICE_NAME,
+        # 服务ID（英文唯一标识）/ 服务名（中文显示名）：对齐平台新版 SDK 协议
+        service_id=SERVICE_NAME,
+        service_name=SERVICE_DISPLAY_NAME,
         port=PORT,
         ip=GATEWAY_IP,
         version=VERSION,

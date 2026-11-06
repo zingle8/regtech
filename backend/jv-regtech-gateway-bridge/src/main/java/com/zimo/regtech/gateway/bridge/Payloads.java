@@ -16,6 +16,9 @@ public final class Payloads {
     public static class ServiceInstance {
         private String appId;
         private String appName;
+        /** 服务ID（英文唯一标识），如 jv-regtech-kb；未配置时服务端回退用 serviceName */
+        private String serviceId;
+        /** 服务名（中文显示名），如 知识库服务；空则显示同 serviceId */
         private String serviceName;
         private String ip;
         private Integer port;

@@ -32,7 +32,8 @@ regtech:
     client-token: ${GATEWAY_CLIENT_TOKEN:dev-gateway-token}
     app-id: app-regtech
     app-name: NCS RegTech 监管科技
-    service-name: jv-regtech-user
+    service-id: jv-regtech-user
+    service-name: 用户中心
     port: 28100
     ip: ${GATEWAY_IP:127.0.0.1}
     trace:

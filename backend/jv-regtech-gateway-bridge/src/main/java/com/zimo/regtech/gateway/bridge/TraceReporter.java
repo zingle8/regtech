@@ -18,17 +18,24 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 调用日志上报器：内存队列 + 异步批量上报，队列满直接丢弃，绝不影响业务。
+ * 调用日志 / 链路 span 上报器：内存队列 + 异步批量上报，队列满直接丢弃，绝不影响业务。
+ *
+ * <p>与 api-gateway 平台 starter 的 TraceReporter 同语义：
+ * 日志走 {@code /trace/logs/batch}，span 走 {@code /trace/spans/batch}；
+ * 所有请求携带 {@code X-Gateway-Client-Token} 共享密钥（网关上报通道二次校验）。</p>
  */
 @Slf4j
 @Component
 public class TraceReporter implements DisposableBean {
 
     private static final String PATH_TRACE_BATCH = "/trace/logs/batch";
+    private static final String PATH_SPAN_BATCH = "/trace/spans/batch";
+    private static final String HEADER_CLIENT_TOKEN = "X-Gateway-Client-Token";
 
     private final GatewayBridgeProperties properties;
     private final RestClient restClient;
     private final BlockingQueue<Payloads.TraceLog> queue = new ArrayBlockingQueue<>(1024);
+    private final BlockingQueue<Payloads.SpanRecord> spanQueue = new ArrayBlockingQueue<>(1024);
     private final ScheduledExecutorService executor;
     private volatile boolean closed = false;
 
@@ -58,7 +65,19 @@ public class TraceReporter implements DisposableBean {
         queue.offer(log);
     }
 
+    /** 链路 span 单独排队（队列满直接丢弃，绝不阻塞业务线程） */
+    public void offerSpan(Payloads.SpanRecord span) {
+        if (closed || span == null) {
+            return;
+        }
+        spanQueue.offer(span);
+    }
+
     public int flush() {
+        return flushLogs() + flushSpans();
+    }
+
+    private int flushLogs() {
         int total = 0;
         int batchSize = Math.max(1, properties.getTrace().getBatchSize());
         while (!queue.isEmpty()) {
@@ -68,12 +87,7 @@ public class TraceReporter implements DisposableBean {
                 break;
             }
             try {
-                restClient.post()
-                        .uri(url(PATH_TRACE_BATCH))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(batch)
-                        .retrieve()
-                        .toBodilessEntity();
+                postBatch(PATH_TRACE_BATCH, batch);
                 total += batch.size();
             } catch (Exception e) {
                 log.debug("上报网关调用日志失败，丢弃 {} 条：{}", batch.size(), e.getMessage());
@@ -81,6 +95,37 @@ public class TraceReporter implements DisposableBean {
             }
         }
         return total;
+    }
+
+    private int flushSpans() {
+        int total = 0;
+        int batchSize = Math.max(1, properties.getTrace().getBatchSize());
+        while (!spanQueue.isEmpty()) {
+            List<Payloads.SpanRecord> batch = new ArrayList<>(batchSize);
+            spanQueue.drainTo(batch, batchSize);
+            if (batch.isEmpty()) {
+                break;
+            }
+            try {
+                postBatch(PATH_SPAN_BATCH, batch);
+                total += batch.size();
+            } catch (Exception e) {
+                log.debug("上报网关链路 span 失败，丢弃 {} 条：{}", batch.size(), e.getMessage());
+                break;
+            }
+        }
+        return total;
+    }
+
+    private void postBatch(String path, Object batch) {
+        RestClient.RequestBodySpec spec = restClient.post()
+                .uri(url(path))
+                .contentType(MediaType.APPLICATION_JSON);
+        String token = properties.getClientToken();
+        if (token != null && !token.isBlank()) {
+            spec = spec.header(HEADER_CLIENT_TOKEN, token);
+        }
+        spec.body(batch).retrieve().toBodilessEntity();
     }
 
     private void flushQuietly() {

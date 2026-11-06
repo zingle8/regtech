@@ -1,167 +1,93 @@
-# -*- coding: utf-8 -*-
-"""
-WSGI 中间件：为 Flask / Django / Bottle 等同步框架自动采集调用日志。
+"""WSGI 中间件：Flask / Django 自动采集 + 入口鉴权（零第三方依赖）。"""
 
-用法::
-
-    from flask import Flask
-    from jv_gateway import GatewayClient
-    from jv_gateway.wsgi import WSGITraceMiddleware
-
-    app = Flask(__name__)
-    client = GatewayClient(app_id="app-order", service_name="order-service", port=8000)
-    client.start()
-
-    app.wsgi_app = WSGITraceMiddleware(app.wsgi_app, client)
-"""
-
-from __future__ import annotations
-
-import io
 import time
-from typing import Any, Dict, Iterable, List
 
-from .client import GatewayClient, HEADER_TRACE_ID, resolve_err_type, resolve_format
 
-__all__ = ["WSGITraceMiddleware"]
+def _now():
+    return time.time()
+
+
+class _ReplayBody:
+    """可重读的 body 包装：SDK 读完缓存体后放回，业务代码仍能正常读取。"""
+
+    def __init__(self, data):
+        self._data = data
+
+    def read(self, n=-1):
+        return self._data if n != 0 else b""
 
 
 class WSGITraceMiddleware:
-    """按 WSGI 协议包装应用，不依赖任何 Web 框架。"""
+    """app.wsgi_app = WSGITraceMiddleware(app.wsgi_app, client)"""
 
-    def __init__(self, app, client: GatewayClient, capture_body: bool = True) -> None:
-        self.app = app
+    MAX_BODY = 8192
+
+    def __init__(self, wsgi_app, client):
+        self.wsgi_app = wsgi_app
         self.client = client
-        self.capture_body = capture_body
 
-    def __call__(self, environ: Dict[str, Any], start_response):
+    def __call__(self, environ, start_response):
         path = environ.get("PATH_INFO", "/")
-        if not self.client.should_trace(path):
-            return self.app(environ, start_response)
+        if self._excluded(path):
+            return self.wsgi_app(environ, start_response)
 
-        client = self.client
-        method = environ.get("REQUEST_METHOD", "GET")
-        started = time.time()
         req_time = _now()
+        length = int(environ.get("CONTENT_LENGTH") or 0)
+        req_body = environ["wsgi.input"].read(length)[: self.MAX_BODY] if length else b""
+        environ["wsgi.input"] = _ReplayBody(req_body)
 
-        # 请求头（WSGI 把 HTTP_ 前缀的键规范化为 header）
-        req_headers = {
-            k[5:].replace("_", "-"): v
-            for k, v in environ.items()
-            if k.startswith("HTTP_")
-        }
+        status_holder = {}
 
-        # 缓存请求体：读取后放回 BytesIO，不能影响下游读取
-        req_body_text = None
-        req_bytes = 0
-        if self.capture_body:
-            try:
-                length = int(environ.get("CONTENT_LENGTH") or 0)
-                if 0 < length <= client.max_body_size:
-                    raw = environ["wsgi.input"].read(length)
-                    environ["wsgi.input"] = io.BytesIO(raw)
-                    req_bytes = len(raw)
-                    req_body_text = raw.decode(_charset(environ.get("CONTENT_TYPE")), "replace")
-            except Exception:
-                req_body_text = None
+        def _start_response(status, headers, exc_info=None):
+            status_holder["code"] = int(status.split(" ", 1)[0])
+            return start_response(status, headers, exc_info)
 
-        status_holder: Dict[str, Any] = {"status": 200, "headers": []}
-        chunks: List[bytes] = []
-
-        def _start_response(status, response_headers, exc_info=None):
-            try:
-                status_holder["status"] = int(str(status).split()[0])
-            except Exception:
-                status_holder["status"] = 500
-            status_holder["headers"] = response_headers
-            write = start_response(status, response_headers, exc_info)
-
-            def _write(data):
-                chunks.append(data)
-                return write(data)
-
-            return _write
-
-        def _stream() -> Iterable[bytes]:
-            try:
-                for chunk in self.app(environ, _start_response):
-                    chunks.append(chunk)
-                    yield chunk
-            finally:
-                self._emit(
-                    environ, method, path, status_holder, chunks,
-                    req_headers, req_body_text, req_bytes, req_time, started,
-                )
-
-        return _stream()
-
-    def _emit(self, environ, method, path, status_holder, chunks,
-              req_headers, req_body_text, req_bytes, req_time, started) -> None:
         try:
-            client = self.client
-            cost = int((time.time() - started) * 1000)
-            status = int(status_holder.get("status") or 500)
-            res_headers = status_holder.get("headers") or []
-            content_type = _header_value(res_headers, "Content-Type")
-            raw = b"".join(c for c in chunks if c)
-            res_body_text = None
-            if client.max_body_size and raw:
-                res_body_text = raw[: client.max_body_size].decode(
-                    _charset(content_type), "replace"
-                )
-
-            client.report(
-                client.build_trace_log(
-                    method=method,
-                    path=path,
-                    status_code=status,
-                    cost_ms=cost,
-                    trace_id=environ.get("HTTP_X_GATEWAY_TRACE_ID") or client.new_trace_id(),
-                    protocol=environ.get("SERVER_PROTOCOL", "HTTP/1.1"),
-                    req_ip=environ.get("REMOTE_ADDR"),
-                    req_port=_to_int(environ.get("REMOTE_PORT")),
-                    # 注意：wsgiref 对无 body 的 GET 也会给出 CONTENT_TYPE='text/plain'，
-                    # 只有真正读到请求体时才采信它，否则会误判成 TEXT
-                    req_content_type=environ.get("CONTENT_TYPE") if req_bytes else None,
-                    res_content_type=content_type,
-                    req_headers=req_headers,
-                    res_headers=res_headers,
-                    req_body=req_body_text,
-                    res_body=res_body_text,
-                    query_string=environ.get("QUERY_STRING") or None,
-                    req_time=req_time,
-                )
-            )
+            captured = []
+            app_iter = self.wsgi_app(environ, _start_response)
+            for chunk in app_iter:
+                captured.append(chunk)
+            if hasattr(app_iter, "close"):
+                app_iter.close()
+            res_body = b"".join(captured)
         except Exception:
-            pass
+            self.client.report(method=environ.get("REQUEST_METHOD", "GET"), path=path,
+                               status_code=500, cost_ms=int((_now() - req_time) * 1000),
+                               req_body=req_body.decode("utf-8", "replace")[: self.MAX_BODY],
+                               err_type="UPSTREAM_ERROR")
+            raise
+
+        code = status_holder.get("code", 200)
+        self.client.report(method=environ.get("REQUEST_METHOD", "GET"), path=path,
+                           status_code=code, cost_ms=int((_now() - req_time) * 1000),
+                           req_body=req_body.decode("utf-8", "replace")[: self.MAX_BODY],
+                           res_body=res_body.decode("utf-8", "replace")[: self.MAX_BODY],
+                           req_bytes=length, res_bytes=len(res_body),
+                           err_type="NONE" if code < 400 else "UPSTREAM_ERROR")
+        return captured
+
+    def _excluded(self, path):
+        # 与 Java SDK excludePaths、网关 TraceGlobalFilter 排除清单同一组路径
+        return path.startswith("/api/trace/") or path.startswith("/api/discovery/services/")
 
 
-def _now() -> str:
-    from datetime import datetime
-    return datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+class WSGIAuthMiddleware:
+    """WSGI 入口鉴权：app.wsgi_app = WSGIAuthMiddleware(app.wsgi_app, auth)
 
+    验签不通过返回 401/403 JSON；SDK 数据上报为出站调用，不在其列。
+    """
 
-def _charset(content_type: Any) -> str:
-    try:
-        ct = str(content_type or "")
-        for part in ct.split(";"):
-            part = part.strip()
-            if part.lower().startswith("charset="):
-                return part.split("=", 1)[1].strip() or "utf-8"
-    except Exception:
-        pass
-    return "utf-8"
+    def __init__(self, wsgi_app, auth):
+        self.wsgi_app = wsgi_app
+        self.auth = auth
 
-
-def _header_value(headers, name: str) -> Any:
-    for k, v in headers or []:
-        if str(k).lower() == name.lower():
-            return v
-    return None
-
-
-def _to_int(value: Any):
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
+    def __call__(self, environ, start_response):
+        decision = self.auth.check(environ.get("PATH_INFO", "/"),
+                                   environ.get("HTTP_AUTHORIZATION", ""),
+                                   environ.get("HTTP_X_API_KEY", ""))
+        if decision is not None:
+            status, body = decision
+            start_response(f"{status} Denied", [("Content-Type", "application/json"),
+                                                ("Content-Length", str(len(body.encode("utf-8"))))])
+            return [body.encode("utf-8")]
+        return self.wsgi_app(environ, start_response)

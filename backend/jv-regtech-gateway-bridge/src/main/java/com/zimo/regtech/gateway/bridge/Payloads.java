@@ -5,7 +5,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 上报模型：字段名与 ai-gateway 的 ServiceInstanceDTO / TraceLogDTO 一一对应。
+ * 上报模型：字段名与 api-gateway 平台的 ServiceInstanceDTO / TraceLogDTO / SpanRecordDTO 一一对应。
  */
 public final class Payloads {
 
@@ -50,5 +50,26 @@ public final class Payloads {
         private String resBody;
         private Long reqBytes;
         private Long resBytes;
+    }
+
+    /** 链路 span（与平台 SpanRecordDTO 对应），KIND 取 SERVER / CLIENT */
+    @Data
+    public static class SpanRecord {
+        public static final String KIND_SERVER = "SERVER";
+        public static final String KIND_CLIENT = "CLIENT";
+
+        private String traceId;
+        private String spanId;
+        private String parentSpanId;
+        private String kind;
+        private String appId;
+        private String appName;
+        private String serviceName;
+        private String api;
+        private String peerService;
+        private Integer statusCode;
+        private String errType;
+        private Integer cost;
+        private LocalDateTime startTime;
     }
 }

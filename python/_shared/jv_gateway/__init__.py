@@ -1,42 +1,32 @@
-# -*- coding: utf-8 -*-
-"""
-jv-gateway —— 网关平台 Python 接入 SDK（自动接入）。
+"""jv_gateway —— AI 网关平台 Python 接入 SDK（零第三方依赖，Python 3.8+）。
 
-零第三方依赖，提供：
-- ``GatewayClient``：服务注册 / 心跳 / 下线 / 调用日志采集与批量上报
-- ``jv_gateway.wsgi.WSGITraceMiddleware``：Flask / Django 自动采集
-- ``jv_gateway.asgi.ASGITraceMiddleware``：FastAPI / Starlette 自动采集
+快速上手::
+
+    from jv_gateway import GatewayClient
+
+    client = GatewayClient(
+        server_addr="http://127.0.0.1:28090/api",
+        app_id="app-order", app_name="订单中心",
+        service_name="order-service", port=8000,
+    )
+    client.start()      # 注册 + 心跳 + 上报线程
+    ...
+    client.stop()       # 刷出剩余日志并下线
+
+Web 框架采集：jv_gateway.wsgi.WSGITraceMiddleware（Flask/Django）、
+jv_gateway.asgi.ASGITraceMiddleware（FastAPI/Starlette）。
+入口鉴权（防止绕过网关直连）：jv_gateway.auth.GatewayAuth。
 """
 
-from .client import (
-    DEFAULT_SERVER_ADDR,
-    ERR_AUTH_FAIL,
-    ERR_LIMIT_REJECT,
-    ERR_NONE,
-    ERR_PARAM_INVALID,
-    ERR_ROUTE_FAIL,
-    ERR_UPSTREAM_ERROR,
-    ERR_UPSTREAM_TIMEOUT,
-    HEADER_TRACE_ID,
-    GatewayClient,
-    resolve_err_type,
-    resolve_format,
-)
+from .client import GatewayClient, verify_token
+from .reporter import TraceReporter
+from .wsgi import WSGITraceMiddleware, WSGIAuthMiddleware
+from .asgi import ASGITraceMiddleware, ASGIAuthMiddleware
+from .auth import GatewayAuth as GatewayAuthMiddleware
 
 __version__ = "1.0.0"
-
 __all__ = [
-    "GatewayClient",
-    "DEFAULT_SERVER_ADDR",
-    "HEADER_TRACE_ID",
-    "ERR_NONE",
-    "ERR_AUTH_FAIL",
-    "ERR_ROUTE_FAIL",
-    "ERR_LIMIT_REJECT",
-    "ERR_PARAM_INVALID",
-    "ERR_UPSTREAM_TIMEOUT",
-    "ERR_UPSTREAM_ERROR",
-    "resolve_err_type",
-    "resolve_format",
-    "__version__",
+    "GatewayClient", "TraceReporter", "verify_token",
+    "WSGITraceMiddleware", "WSGIAuthMiddleware",
+    "ASGITraceMiddleware", "ASGIAuthMiddleware", "GatewayAuthMiddleware",
 ]

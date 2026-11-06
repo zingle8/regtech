@@ -51,7 +51,36 @@ public class GatewayBridgeProperties {
 
     private long heartbeatInterval = 30000L;
 
+    /**
+     * 上报通道共享密钥（X-Gateway-Client-Token）：注册 / 心跳 / 链路采集在网关
+     * skipPaths 白名单放行后会做二次校验，必须与网关 proxy 的
+     * {@code gateway.auth.client-token}（默认 ${GATEWAY_CLIENT_TOKEN:dev-gateway-token}）同值。
+     */
+    private String clientToken = "dev-gateway-token";
+
+    /** 入口鉴权（防绕过网关直连），协议与平台 starter 的 GatewayAuthFilter 一致，默认关闭 */
+    private Auth auth = new Auth();
+
     private Trace trace = new Trace();
+
+    /** 入口鉴权配置（默认关闭；启用后每个请求回调网关开放验签接口） */
+    @Data
+    public static class Auth {
+
+        private boolean enabled = false;
+
+        /** 验签地址；留空则用 baseUrl + /open/auth/token/verify */
+        private String verifyUrl = "";
+
+        /** 豁免路径前缀（健康检查等），命中直接放行 */
+        private List<String> exemptPaths = new ArrayList<>(List.of("/health", "/actuator", "/error", "/favicon.ico"));
+
+        /** 验签结果缓存秒数（同一 token 不重复回调网关） */
+        private int cacheSeconds = 60;
+
+        /** 网关不可达时 true 放行（可用性优先）/ false 拒绝（安全优先，默认） */
+        private boolean failOpen = false;
+    }
 
     @Data
     public static class Trace {

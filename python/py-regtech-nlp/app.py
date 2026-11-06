@@ -299,7 +299,8 @@ def main() -> None:
         port=PORT,
         ip=GATEWAY_IP,
         version=VERSION,
-        exclude_paths=("/health", "/api/regtech/nlp/health", "/favicon.ico"),
+        # 上报通道共享密钥：与网关 proxy 的 GATEWAY_CLIENT_TOKEN 同值（新版 SDK 协议）
+        client_token=os.environ.get("GATEWAY_CLIENT_TOKEN", "dev-gateway-token"),
     )
     client.start()
 

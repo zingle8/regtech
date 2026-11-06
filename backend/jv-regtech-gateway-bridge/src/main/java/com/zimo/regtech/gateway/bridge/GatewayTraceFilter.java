@@ -15,18 +15,24 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Collections;
-import java.util.UUID;
 
 /**
- * 调用日志采集：与 ai-gateway 的 GatewayTraceFilter 行为一致。
+ * 调用日志 + 链路 span 采集：与 api-gateway 平台 starter 的 GatewayTraceFilter 行为一致。
  *
- * <p>只在内存中旁路复制报文体，不重写响应；SSE 等流式响应只记元数据。</p>
+ * <ul>
+ *   <li>请求日志走 {@code /trace/logs/batch}，SERVER span 走 {@code /trace/spans/batch}</li>
+ *   <li>链路上文写入 {@link TraceContext}，出站调用由 {@link TracePropagationInterceptor}
+ *       生成 CLIENT span 并向下游注入 traceparent</li>
+ *   <li>链路 ID 兼容 W3C {@code traceparent} 与旧版 {@code X-Gateway-Trace-Id}</li>
+ *   <li>只在内存中旁路复制报文体，不重写响应；SSE 等流式响应只记元数据</li>
+ * </ul>
  */
 @Slf4j
 @RequiredArgsConstructor
 public class GatewayTraceFilter extends OncePerRequestFilter {
 
     private static final String TRACE_ID_HEADER = "X-Gateway-Trace-Id";
+    private static final String HEADER_TRACEPARENT = "traceparent";
 
     private final GatewayBridgeProperties properties;
     private final TraceReporter reporter;
@@ -34,10 +40,28 @@ public class GatewayTraceFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
-        // SSE / 流式响应不能包装：ContentCachingResponseWrapper 会在异步完成前提交响应，
-        // 导致前端收到空 body。流式接口只记元数据，直接放行。
-        if (!shouldTrace(request) || isStreaming(request)) {
+        if (!shouldTrace(request)) {
             chain.doFilter(request, response);
+            return;
+        }
+
+        // 链路上文：优先 traceparent（W3C），兜底旧 X-Gateway-Trace-Id，都没有则本服务是链路根
+        TraceContextUtil.Parsed upstream = TraceContextUtil.parse(request.getHeader(HEADER_TRACEPARENT));
+        if (upstream == null) {
+            upstream = TraceContextUtil.fromLegacy(request.getHeader(TRACE_ID_HEADER));
+        }
+        String traceId = upstream != null ? upstream.traceId() : TraceContextUtil.newTraceId();
+        String serverSpanId = TraceContextUtil.newSpanId();
+        TraceContext.set(traceId, serverSpanId);
+
+        // SSE / 流式响应不能包装：ContentCachingResponseWrapper 会在异步完成前提交响应，
+        // 导致前端收到空 body。流式接口只传播链路（供出站 CLIENT span 使用），不采集日志与 span。
+        if (isStreaming(request)) {
+            try {
+                chain.doFilter(request, response);
+            } finally {
+                TraceContext.clear();
+            }
             return;
         }
 
@@ -51,15 +75,22 @@ public class GatewayTraceFilter extends OncePerRequestFilter {
         } finally {
             long cost = System.currentTimeMillis() - start;
             try {
+                Payloads.TraceLog traceLog = buildLog(request, requestWrapper, responseWrapper, reqTime, cost, traceId);
+                Payloads.SpanRecord span = buildSpan(request, responseWrapper, traceId,
+                        serverSpanId, upstream == null ? null : upstream.spanId(), reqTime, cost);
                 if (request.isAsyncStarted()) {
                     // 异步请求由容器后续派发，此时不能回写 body
-                    reporter.offer(buildLog(request, requestWrapper, responseWrapper, reqTime, cost));
+                    reporter.offer(traceLog);
+                    reporter.offerSpan(span);
                 } else {
                     responseWrapper.copyBodyToResponse();
-                    reporter.offer(buildLog(request, requestWrapper, responseWrapper, reqTime, cost));
+                    reporter.offer(traceLog);
+                    reporter.offerSpan(span);
                 }
             } catch (Exception e) {
                 log.debug("采集调用日志失败：{}", e.getMessage());
+            } finally {
+                TraceContext.clear();
             }
         }
     }
@@ -95,7 +126,8 @@ public class GatewayTraceFilter extends OncePerRequestFilter {
                                        ContentCachingRequestWrapper requestWrapper,
                                        ContentCachingResponseWrapper responseWrapper,
                                        LocalDateTime reqTime,
-                                       long cost) {
+                                       long cost,
+                                       String traceId) {
         int max = Math.max(256, properties.getTrace().getMaxBodySize());
         byte[] reqBytes = requestWrapper.getContentAsByteArray();
         byte[] resBytes = responseWrapper.getContentAsByteArray();
@@ -107,7 +139,7 @@ public class GatewayTraceFilter extends OncePerRequestFilter {
         log.setServiceName(properties.getServiceName());
         log.setApi(request.getMethod() + " " + request.getRequestURI());
         log.setReqParams(request.getQueryString());
-        log.setTraceId(resolveTraceId(request));
+        log.setTraceId(traceId);
         log.setProtocol(request.getProtocol());
         log.setReqFormat(request.getContentType());
         log.setResFormat(resContentType);
@@ -116,7 +148,7 @@ public class GatewayTraceFilter extends OncePerRequestFilter {
         log.setResIp(properties.getIp());
         log.setResPort(properties.getPort());
         log.setStatusCode(responseWrapper.getStatus());
-        log.setErrType(errType(responseWrapper.getStatus()));
+        log.setErrType(ErrTypes.resolve(responseWrapper.getStatus()));
         log.setCost((int) cost);
         log.setReqTime(reqTime);
         log.setResTime(LocalDateTime.now());
@@ -131,6 +163,31 @@ public class GatewayTraceFilter extends OncePerRequestFilter {
             log.setResBody(truncate(resBytes, max));
         }
         return log;
+    }
+
+    /** SERVER span：父 span 为网关 / 上游透传的 client span，形成完整链路 */
+    private Payloads.SpanRecord buildSpan(HttpServletRequest request,
+                                          ContentCachingResponseWrapper responseWrapper,
+                                          String traceId,
+                                          String serverSpanId,
+                                          String parentSpanId,
+                                          LocalDateTime startTime,
+                                          long cost) {
+        Payloads.SpanRecord span = new Payloads.SpanRecord();
+        span.setTraceId(traceId);
+        span.setSpanId(serverSpanId);
+        span.setParentSpanId(parentSpanId == null ? "" : parentSpanId);
+        span.setKind(Payloads.SpanRecord.KIND_SERVER);
+        span.setAppId(properties.getAppId());
+        span.setAppName(properties.getAppName());
+        span.setServiceName(properties.getServiceName());
+        span.setApi(request.getMethod() + " " + request.getRequestURI());
+        span.setPeerService("");
+        span.setStatusCode(responseWrapper.getStatus());
+        span.setErrType(ErrTypes.resolve(responseWrapper.getStatus()));
+        span.setCost((int) cost);
+        span.setStartTime(startTime);
+        return span;
     }
 
     private static String truncate(byte[] bytes, int max) {
@@ -161,34 +218,11 @@ public class GatewayTraceFilter extends OncePerRequestFilter {
         return sb.toString();
     }
 
-    private static String resolveTraceId(HttpServletRequest request) {
-        String traceId = request.getHeader(TRACE_ID_HEADER);
-        return traceId == null || traceId.isEmpty()
-                ? UUID.randomUUID().toString().replace("-", "").substring(0, 16)
-                : traceId;
-    }
-
     private static String resolveIp(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");
         if (forwarded != null && !forwarded.isEmpty()) {
             return forwarded.split(",")[0].trim();
         }
         return request.getRemoteAddr();
-    }
-
-    private static String errType(int status) {
-        if (status == 401 || status == 403) {
-            return "鉴权失败";
-        }
-        if (status == 404) {
-            return "路由失败";
-        }
-        if (status == 429) {
-            return "限流拒绝";
-        }
-        if (status == 504) {
-            return "上游响应超时";
-        }
-        return status >= 500 ? "上游响应异常" : null;
     }
 }

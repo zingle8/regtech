@@ -30,11 +30,15 @@ public class GatewayRegistrar implements ApplicationRunner, DisposableBean {
     private static final String PATH_REGISTER = "/discovery/services/register";
     private static final String PATH_HEARTBEAT = "/discovery/services/heartbeat";
     private static final String PATH_DEREGISTER = "/discovery/services/deregister";
+    private static final String HEADER_CLIENT_TOKEN = "X-Gateway-Client-Token";
 
     private final GatewayBridgeProperties properties;
     private final Environment environment;
     private final RestClient restClient;
     private final ScheduledExecutorService executor;
+
+    /** 注册是否成功；失败时心跳周期自动补注册（服务端按 serviceName upsert，幂等） */
+    private volatile boolean registered = false;
 
     public GatewayRegistrar(GatewayBridgeProperties properties, Environment environment) {
         this.properties = properties;
@@ -65,13 +69,17 @@ public class GatewayRegistrar implements ApplicationRunner, DisposableBean {
             restClient.post()
                     .uri(url(PATH_REGISTER))
                     .contentType(MediaType.APPLICATION_JSON)
+                    .headers(headers -> clientToken(headers))
                     .body(instance)
                     .retrieve()
                     .toBodilessEntity();
+            registered = true;
             log.info("已接入 API 网关平台：{} ({}) {}:{}",
                     instance.getAppId(), instance.getServiceName(), instance.getIp(), instance.getPort());
         } catch (Exception e) {
-            log.warn("接入 API 网关平台失败（不影响业务启动）：{}", e.getMessage());
+            // 标记未注册：下个心跳周期自动补注册，避免启动顺序早于网关时一次失败就永久离线
+            registered = false;
+            log.warn("接入 API 网关平台失败（不影响业务启动，下个心跳周期自动重试）：{}", e.getMessage());
         }
     }
 
@@ -80,14 +88,32 @@ public class GatewayRegistrar implements ApplicationRunner, DisposableBean {
             return;
         }
         try {
+            // 未注册成功（启动失败 / 心跳失联）时先补注册，注册成功才发心跳
+            if (!registered) {
+                register();
+                if (!registered) {
+                    return;
+                }
+            }
+            heartbeat();
+        } catch (Exception e) {
+            log.debug("网关平台心跳异常：{}", e.getMessage());
+        }
+    }
+
+    private void heartbeat() {
+        try {
             restClient.post()
                     .uri(url(PATH_HEARTBEAT))
                     .contentType(MediaType.APPLICATION_JSON)
+                    .headers(headers -> clientToken(headers))
                     .body(buildInstance())
                     .retrieve()
                     .toBodilessEntity();
+            registered = true;
         } catch (Exception e) {
-            log.debug("网关平台心跳失败：{}", e.getMessage());
+            registered = false;
+            log.debug("网关平台心跳失败，下个周期将尝试重新注册：{}", e.getMessage());
         }
     }
 
@@ -101,12 +127,21 @@ public class GatewayRegistrar implements ApplicationRunner, DisposableBean {
             restClient.method(HttpMethod.DELETE)
                     .uri(url(PATH_DEREGISTER))
                     .contentType(MediaType.APPLICATION_JSON)
+                    .headers(headers -> clientToken(headers))
                     .body(buildInstance())
                     .retrieve()
                     .toBodilessEntity();
             log.info("已从 API 网关平台下线：{}", properties.getServiceName());
         } catch (Exception e) {
             log.debug("网关平台下线失败：{}", e.getMessage());
+        }
+    }
+
+    /** 上报通道共享密钥：网关 proxy 对白名单内的注册 / 心跳 / 采集路径做二次校验 */
+    private void clientToken(org.springframework.http.HttpHeaders headers) {
+        String token = properties.getClientToken();
+        if (token != null && !token.isBlank()) {
+            headers.set(HEADER_CLIENT_TOKEN, token);
         }
     }
 

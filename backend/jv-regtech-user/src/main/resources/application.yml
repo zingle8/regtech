@@ -29,6 +29,7 @@ regtech:
   gateway:
     enabled: ${GATEWAY_ENABLED:true}
     base-url: ${GATEWAY_BASE_URL:http://127.0.0.1:28090/api}
+    client-token: ${GATEWAY_CLIENT_TOKEN:dev-gateway-token}
     app-id: app-regtech
     app-name: NCS RegTech 监管科技
     service-name: jv-regtech-user

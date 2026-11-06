@@ -669,4 +669,17 @@ onMounted(async () => {
   padding: 14px;
   border-radius: 8px;
 }
+
+/* 窄屏：知识库列表与右侧内容上下堆叠 */
+@media (max-width: 1100px) {
+  .layout {
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .side {
+    width: 100%;
+    max-height: 220px;
+  }
+}
 </style>

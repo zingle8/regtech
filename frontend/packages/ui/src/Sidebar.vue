@@ -1,5 +1,5 @@
 <template>
-  <aside class="sidebar">
+  <aside class="sidebar" :class="{ open }">
     <div class="brand">
       <div class="brand-logo">N</div>
       <div class="brand-text">
@@ -42,14 +42,21 @@ import { useRouter, useRoute } from 'vue-router'
 
 defineProps({
   menus: { type: Array, default: () => [] },
-  brand: { type: String, default: 'NCS RegTech' }
+  brand: { type: String, default: 'NCS RegTech' },
+  /** 窄屏抽屉展开状态 */
+  open: { type: Boolean, default: false }
 })
+
+const emit = defineEmits(['navigate'])
 
 const router = useRouter()
 const route = useRoute()
 
 const isActive = (path) => route.path === path || route.path.startsWith(path + '/')
-const go = (path) => router.push(path)
+const go = (path) => {
+  router.push(path)
+  emit('navigate')
+}
 </script>
 
 <style scoped>
@@ -171,5 +178,34 @@ const go = (path) => router.push(path)
   border-radius: 50%;
   background: #4ADE80;
   box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.14);
+}
+
+/* 窄屏：侧边栏改为抽屉，点菜单后自动收起 */
+@media (max-width: 960px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1001;
+    width: 232px;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    box-shadow: 2px 0 16px rgba(12, 42, 85, 0.28);
+  }
+
+  .sidebar.open {
+    transform: none;
+  }
+
+  .brand {
+    height: var(--rt-topbar-h);
+  }
+}
+
+@media (max-width: 400px) {
+  .sidebar {
+    width: 82vw;
+  }
 }
 </style>

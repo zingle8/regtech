@@ -889,4 +889,25 @@ onMounted(loadJurisdictions)
   justify-content: space-between;
   padding-top: 10px;
 }
+
+/* 窄屏：精读头部与对照卡片改为单列 */
+@media (max-width: 720px) {
+  .diff-head {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    text-align: left;
+  }
+
+  .diff-side.right {
+    text-align: left;
+  }
+
+  .diff-score {
+    text-align: left;
+  }
+
+  .compare-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 </style>

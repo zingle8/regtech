@@ -282,7 +282,7 @@ h1 {
 }
 
 .login-card {
-  width: 360px;
+  width: min(360px, 100%);
 }
 
 .login-hd {
@@ -337,6 +337,17 @@ h1 {
 @media (max-width: 1024px) {
   .brand-panel {
     display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .form-panel {
+    padding: 24px 18px;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 360px;
   }
 }
 </style>

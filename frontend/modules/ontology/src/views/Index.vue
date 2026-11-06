@@ -545,4 +545,17 @@ onMounted(async () => {
   color: var(--rt-text-2);
   line-height: 1.7;
 }
+
+/* 窄屏：左侧实体树与右侧详情上下堆叠 */
+@media (max-width: 1100px) {
+  .layout {
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .side {
+    width: 100%;
+    max-height: 240px;
+  }
+}
 </style>

@@ -693,4 +693,22 @@ onMounted(async () => {
   gap: 6px;
   padding-bottom: 2px;
 }
+
+/* 窄屏：会话列表收成顶部横条，聊天区占满剩余高度 */
+@media (max-width: 960px) {
+  .chat-layout {
+    flex-direction: column;
+  }
+
+  .side {
+    width: 100%;
+    max-height: 168px;
+  }
+}
+
+@media (max-width: 640px) {
+  .bubble {
+    max-width: 92%;
+  }
+}
 </style>

@@ -1,5 +1,8 @@
 <template>
   <header class="topbar">
+    <button class="nav-toggle" type="button" aria-label="展开菜单" @click="emit('toggle-nav')">
+      <el-icon><Expand /></el-icon>
+    </button>
     <div class="crumb">
       <span class="page-title">{{ pageTitle }}</span>
       <span class="page-subtitle">{{ pageSubtitle }}</span>
@@ -33,7 +36,9 @@ import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { useUserStore, logout as logoutApi } from '@regtech/shared'
-import { ArrowDown, DataLine } from '@element-plus/icons-vue'
+import { ArrowDown, DataLine, Expand } from '@element-plus/icons-vue'
+
+const emit = defineEmits(['toggle-nav'])
 
 const router = useRouter()
 const route = useRoute()
@@ -71,7 +76,28 @@ const onCommand = async (cmd) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 18px;
+  gap: 10px;
+  padding: 0 clamp(10px, 1.4vw, 18px);
+}
+
+.nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--rt-border);
+  border-radius: 7px;
+  background: var(--rt-card);
+  color: var(--rt-navy);
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.nav-toggle:hover {
+  background: var(--sidebar-hover);
 }
 
 .crumb {
@@ -151,5 +177,37 @@ const onCommand = async (cmd) => {
 .arrow {
   font-size: 11px;
   color: var(--rt-text-3);
+}
+
+@media (max-width: 960px) {
+  .nav-toggle {
+    display: flex;
+  }
+
+  .crumb {
+    flex: 1;
+  }
+}
+
+@media (max-width: 720px) {
+  .page-subtitle {
+    display: none;
+  }
+
+  .gateway-link span {
+    display: none;
+  }
+
+  .gateway-link {
+    padding: 6px;
+  }
+
+  .user-meta {
+    display: none;
+  }
+
+  .arrow {
+    display: none;
+  }
 }
 </style>

@@ -351,4 +351,17 @@ onBeforeUnmount(() => {
   line-height: 1.7;
   color: var(--rt-text-3);
 }
+
+@media (max-width: 1100px) {
+  .grid-2,
+  .grid-2.bottom {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .chart-lg {
+    height: 200px;
+  }
+}
 </style>

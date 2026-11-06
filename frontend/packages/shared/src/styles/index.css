@@ -167,7 +167,7 @@ body {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 16px 18px 22px;
+  padding: clamp(10px, 1.4vw, 16px) clamp(10px, 1.4vw, 18px) 22px;
 }
 
 .rt-page-fixed {
@@ -175,7 +175,7 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 16px 18px;
+  padding: clamp(10px, 1.4vw, 16px) clamp(10px, 1.4vw, 18px);
   overflow: hidden;
 }
 
@@ -244,5 +244,63 @@ body {
   }
   .rt-stat-value {
     font-size: 20px;
+  }
+}
+
+/* ---------- 自适应断点 ---------- */
+
+/* 平板：指标卡改两列，工具栏右侧按钮换行 */
+@media (max-width: 1024px) {
+  .rt-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .rt-toolbar-right {
+    margin-left: 0;
+  }
+}
+
+/* 小屏：工具栏控件占满整行（覆盖页面内联固定宽度） */
+@media (max-width: 820px) {
+  .rt-toolbar {
+    gap: 6px;
+  }
+  .rt-toolbar > .el-select,
+  .rt-toolbar > .el-input,
+  .rt-toolbar > .el-date-editor,
+  .rt-toolbar > .el-radio-group,
+  .rt-toolbar > .el-switch,
+  .rt-toolbar-right {
+    width: 100% !important;
+    margin-left: 0;
+  }
+  .rt-toolbar-right .el-button {
+    flex: 1;
+  }
+  .rt-toolbar > .el-radio-group {
+    display: flex;
+  }
+  .rt-toolbar > .el-radio-group .el-radio-button {
+    flex: 1;
+  }
+  .rt-toolbar > .el-radio-group .el-radio-button__inner {
+    width: 100%;
+  }
+}
+
+/* 手机：指标卡单列，内边距收紧 */
+@media (max-width: 640px) {
+  .rt-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rt-page,
+  .rt-page-fixed {
+    padding: 10px 10px 16px;
+  }
+  .rt-stat-value {
+    font-size: 19px;
+  }
+  .rt-card-hd {
+    flex-wrap: wrap;
+    gap: 6px;
   }
 }

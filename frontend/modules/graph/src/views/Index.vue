@@ -339,4 +339,23 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* 窄屏：图谱与详情栏上下堆叠，画布保证最小高度 */
+@media (max-width: 1100px) {
+  .body {
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .canvas-card {
+    flex: 0 0 auto;
+    height: 56vh;
+    min-height: 320px;
+  }
+
+  .side {
+    width: 100%;
+    max-height: 300px;
+  }
+}
 </style>

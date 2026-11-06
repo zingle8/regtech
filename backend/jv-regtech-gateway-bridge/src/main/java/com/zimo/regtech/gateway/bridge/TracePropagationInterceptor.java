@@ -73,7 +73,8 @@ public class TracePropagationInterceptor implements ClientHttpRequestInterceptor
             span.setKind(Payloads.SpanRecord.KIND_CLIENT);
             span.setAppId(properties.getAppId());
             span.setAppName(properties.getAppName());
-            span.setServiceName(properties.getServiceName());
+            span.setServiceId(properties.effectiveServiceId());
+            span.setServiceName(properties.effectiveServiceId());
             span.setApi(method + " " + uri.getRawPath());
             if (peerHeader != null && !peerHeader.isEmpty()) {
                 span.setPeerService(peerHeader);

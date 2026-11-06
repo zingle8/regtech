@@ -42,6 +42,15 @@ public class GatewayBridgeProperties {
     /** 服务名（中文显示名），如 知识库服务；留空时服务端显示同 serviceId */
     private String serviceName = "regtech-service";
 
+    /**
+     * 生效的服务ID（英文唯一标识）：service-id 有值用 service-id，
+     * 否则回退 service-name（兼容只配 service-name 的旧接入方）。
+     * 注册幂等键与上报归属字段统一用这个值。
+     */
+    public String effectiveServiceId() {
+        return serviceId != null && !serviceId.isBlank() ? serviceId : serviceName;
+    }
+
     private String ip = "127.0.0.1";
 
     /** 不填取 server.port */

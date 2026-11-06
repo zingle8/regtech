@@ -154,8 +154,7 @@ public class GatewayRegistrar implements ApplicationRunner, DisposableBean {
         instance.setAppId(properties.getAppId());
         instance.setAppName(properties.getAppName());
         // 服务ID（英文唯一标识）：未配置时回退 serviceName，兼容旧版配置
-        String serviceId = properties.getServiceId() != null && !properties.getServiceId().isBlank()
-                ? properties.getServiceId() : properties.getServiceName();
+        String serviceId = properties.effectiveServiceId();
         instance.setServiceId(serviceId);
         // 服务名（中文显示名）：未配置时与服务ID一致
         instance.setServiceName(properties.getServiceName() != null && !properties.getServiceName().isBlank()

@@ -31,6 +31,8 @@ public final class Payloads {
     public static class TraceLog {
         private String appId;
         private String appName;
+        /** 服务ID（英文唯一标识），归属列；服务端落库优先取此值 */
+        private String serviceId;
         private String serviceName;
         private String api;
         private String reqParams;
@@ -67,6 +69,8 @@ public final class Payloads {
         private String kind;
         private String appId;
         private String appName;
+        /** 服务ID（英文唯一标识），归属列；服务端落库优先取此值 */
+        private String serviceId;
         private String serviceName;
         private String api;
         private String peerService;

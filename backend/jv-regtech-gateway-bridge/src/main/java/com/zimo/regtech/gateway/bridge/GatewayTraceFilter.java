@@ -136,7 +136,10 @@ public class GatewayTraceFilter extends OncePerRequestFilter {
         Payloads.TraceLog log = new Payloads.TraceLog();
         log.setAppId(properties.getAppId());
         log.setAppName(properties.getAppName());
-        log.setServiceName(properties.getServiceName());
+        // 归属字段统一上报服务ID（英文唯一标识）：平台 trace 表 service_name 存 ID，
+        // 中文服务名只在注册表维护、展示层映射，保证统计/拓扑聚合口径一致
+        log.setServiceId(properties.effectiveServiceId());
+        log.setServiceName(properties.effectiveServiceId());
         log.setApi(request.getMethod() + " " + request.getRequestURI());
         log.setReqParams(request.getQueryString());
         log.setTraceId(traceId);
@@ -180,7 +183,8 @@ public class GatewayTraceFilter extends OncePerRequestFilter {
         span.setKind(Payloads.SpanRecord.KIND_SERVER);
         span.setAppId(properties.getAppId());
         span.setAppName(properties.getAppName());
-        span.setServiceName(properties.getServiceName());
+        span.setServiceId(properties.effectiveServiceId());
+        span.setServiceName(properties.effectiveServiceId());
         span.setApi(request.getMethod() + " " + request.getRequestURI());
         span.setPeerService("");
         span.setStatusCode(responseWrapper.getStatus());
